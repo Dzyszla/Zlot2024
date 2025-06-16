@@ -108,32 +108,41 @@ end;
 
 procedure TfmControlVisualizer.UpdateControl(aExpression: String);
 var
-  wFileName : String;
-  wBmp : TBitmap;
-  wResult : String;
-  wControlUtilsExists : Boolean;
+	wBmp : TBitmap;
+	w, h: Integer;
+	lHandle: THandle;
+	DC, MemDC: HDC;
+	lBitmap: HBITMAP;
+	OldBitmap: HGDIOBJ;
 begin
-  wFileName := TFileUtils.TempDir + '\controlvisualizer';
-  if FileExists(wFileName) then
-    DeleteFile(wFileName);
-  wControlUtilsExists := SameText(Evaluate('ControlUtilsObj.ClassName'), '''TControlUtils''');
-  if not wControlUtilsExists then begin
-    ShowInfo('ControlUtils not available in this context');
-    Exit;
-  end;
+	wBmp := TBitmap.Create();
+	try
+		w := StrToInt(Evaluate(aExpression + '.Width'));
+		h := StrToInt(Evaluate(aExpression + '.Height'));
 
-  wResult := Evaluate(Format('ControlUtilsObj.CanvasToFile(%s, ''%s'')', [aExpression, wFileName]));
-  if FileExists(wFileName) then begin
-    wBmp := TBitmap.Create();
-    try
-      wBmp.LoadFromFile(wFileName);
-      UpdateBitmap(wBmp);
-    finally
-      wBmp.Free;
-    end;
-  end else begin
-    ShowInfo(DeferredResult);
-  end;
+		lHandle := StrToInt(Evaluate(aExpression + '.Handle'));
+
+		DC := GetWindowDC(lHandle);
+		try
+			MemDC := CreateCompatibleDC(DC);
+			lBitmap := CreateCompatibleBitmap(DC, w, h);
+			OldBitmap := SelectObject(MemDC, lBitmap);
+
+			BitBlt(MemDC, 0, 0, w, h, DC, 0, 0, SRCCOPY);
+
+			SelectObject(MemDC, OldBitmap);
+			wBmp.Handle := lBitmap;
+
+			UpdateBitmap(wBmp);
+
+			DeleteDC(MemDC);
+			//DeleteObject(lBitmap);
+		finally
+			ReleaseDC(lHandle, DC);
+		end;
+	finally
+		wBmp.Free;
+	end;
 end;
 
 { TFormControlVisualizer }
@@ -157,7 +166,7 @@ end;
 
 function TControlVisualizer.GetMenuText: string;
 begin
-  Result := 'Poka¿ kontrolkê';
+  Result := 'PokaÅ¼ kontrolkÄ™';
 end;
 
 procedure TControlVisualizer.GetSupportedType(Index: Integer;
